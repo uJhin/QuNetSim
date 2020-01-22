@@ -59,7 +59,7 @@
             
             
               <div class="version">
-                1.0.0
+                0.0.1
               </div>
             
           
@@ -91,6 +91,9 @@
 <li class="toctree-l2"><a class="reference internal" href="install/windows.html">Windows</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick Start Guide</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="design.html">Design Overview</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="components.html">Components</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="components/host.html">Host</a></li>
@@ -110,7 +113,9 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="examples/send_epr.html">Send EPR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/send_data.html">Send Data Qubits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/send_epr.html">Send EPR Pairs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/entanglement_routing.html">Routing with Entanglement</a></li>
 <li class="toctree-l2"><a class="reference internal" href="examples/QKD.html">Quantum Key Distribution</a></li>
 </ul>
 </li>
@@ -206,9 +211,9 @@
 <h2 id="_">_</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="components/protocols.html#components.protocols._add_checksum">_add_checksum() (in module components.protocols)</a>
-</li>
       <li><a href="objects/quantum_storage.html#objects.quantum_storage.QuantumStorage._check_memory_limits">_check_memory_limits() (objects.quantum_storage.QuantumStorage method)</a>
+</li>
+      <li><a href="objects/quantum_storage.html#objects.quantum_storage.QuantumStorage._check_qubit_in_system">_check_qubit_in_system() (objects.quantum_storage.QuantumStorage method)</a>
 </li>
       <li><a href="components/protocols.html#components.protocols._decode_superdense">_decode_superdense() (in module components.protocols)</a>
 </li>
@@ -306,10 +311,6 @@
 <h2 id="B">B</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="components/host.html#components.host.Host.backend">backend() (components.host.Host property)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="objects/qubit.html#objects.qubit.Qubit.blocked">blocked() (objects.qubit.Qubit property)</a>
 </li>
   </ul></td>
@@ -394,10 +395,10 @@
 </li>
       <li><a href="components/host.html#components.host.Host.get_data_qubit">get_data_qubit() (components.host.Host method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="components/host.html#components.host.Host.get_data_qubits">get_data_qubits() (components.host.Host method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="components/host.html#components.host.Host.get_epr">get_epr() (components.host.Host method)</a>
 </li>
       <li><a href="components/host.html#components.host.Host.get_epr_pairs">get_epr_pairs() (components.host.Host method)</a>
@@ -405,6 +406,10 @@
       <li><a href="components/network.html#components.network.Network.get_host">get_host() (components.network.Network method)</a>
 </li>
       <li><a href="components/network.html#components.network.Network.get_host_name">get_host_name() (components.network.Network method)</a>
+</li>
+      <li><a href="components/host.html#components.host.Host.get_message_w_seq_num">get_message_w_seq_num() (components.host.Host method)</a>
+</li>
+      <li><a href="components/host.html#components.host.Host.get_next_classical_message">get_next_classical_message() (components.host.Host method)</a>
 </li>
       <li><a href="objects/classical_storage.html#objects.classical_storage.ClassicalStorage.get_next_from_sender">get_next_from_sender() (objects.classical_storage.ClassicalStorage method)</a>
 </li>
@@ -586,6 +591,8 @@
 </li>
       <li><a href="components/host.html#components.host.Host.send_epr">send_epr() (components.host.Host method)</a>
 </li>
+      <li><a href="components/host.html#components.host.Host.send_key">send_key() (components.host.Host method)</a>
+</li>
       <li><a href="components/host.html#components.host.Host.send_qubit">send_qubit() (components.host.Host method)</a>
 </li>
       <li><a href="components/host.html#components.host.Host.send_superdense">send_superdense() (components.host.Host method)</a>
@@ -715,7 +722,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, Stephen Diadamo
+        &copy; Copyright 2019, Stephen DiAdamo
 
     </p>
   </div>

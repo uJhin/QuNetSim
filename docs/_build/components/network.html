@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                1.0.0
+                0.0.1
               </div>
             
           
@@ -92,6 +92,9 @@
 <li class="toctree-l2"><a class="reference internal" href="../install/windows.html">Windows</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start Guide</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l1 current"><a class="reference internal" href="../design.html">Design Overview</a><ul class="current">
 <li class="toctree-l2 current"><a class="reference internal" href="../components.html">Components</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="host.html">Host</a></li>
@@ -111,7 +114,9 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../examples/send_epr.html">Send EPR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/send_data.html">Send Data Qubits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/send_epr.html">Send EPR Pairs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/entanglement_routing.html">Routing with Entanglement</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../examples/QKD.html">Quantum Key Distribution</a></li>
 </ul>
 </li>
@@ -397,11 +402,6 @@ between sender and receiver.</p>
 <dt id="components.network.Network.packet_drop_rate">
 <em class="property">property </em><code class="sig-name descname">packet_drop_rate</code><a class="headerlink" href="#components.network.Network.packet_drop_rate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the drop rate of the network.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>drop_rate</strong> (<em>float</em>) – Probability of dropping a packet in the network</p>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="method">
@@ -473,7 +473,7 @@ between sender and receiver.</p>
 
 <dl class="method">
 <dt id="components.network.Network.start">
-<code class="sig-name descname">start</code><span class="sig-paren">(</span><em class="sig-param">nodes=None</em>, <em class="sig-param">backend=&lt;backends.cqc_backend.CQCBackend object&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#components.network.Network.start" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">start</code><span class="sig-paren">(</span><em class="sig-param">nodes=None</em>, <em class="sig-param">backend=None</em><span class="sig-paren">)</span><a class="headerlink" href="#components.network.Network.start" title="Permalink to this definition">¶</a></dt>
 <dd><p>Starts the network.</p>
 </dd></dl>
 
@@ -530,7 +530,7 @@ between sender and receiver.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, Stephen Diadamo
+        &copy; Copyright 2019, Stephen DiAdamo
 
     </p>
   </div>

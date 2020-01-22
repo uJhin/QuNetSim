@@ -4,6 +4,8 @@ from objects.qubit import Qubit
 from components.logger import Logger
 from components.network import Network
 from objects.packet import Packet
+import numpy as np
+import random
 
 # CONSTANTS
 GENERATE_EPR_IF_NONE = 'generate_epr_if_none'
@@ -16,6 +18,9 @@ RECEIVER = 'receiver'
 PROTOCOL = 'protocol'
 
 network = Network.get_instance()
+
+# WAIT_TIME
+WAIT_TIME = 10
 
 # QUBIT TYPES
 EPR = 0
@@ -40,6 +45,8 @@ SEND_CLASSICAL = 'send_classical'
 RELAY = 'relay'
 SEND_QUBIT = 'send_qubit'
 REC_QUBIT = 'rec_qubit'
+SEND_KEY = 'send_key'
+REC_KEY = 'rec_key'
 
 
 def encode(sender, receiver, protocol, payload=None, payload_type='', sequence_num=-1, await_ack=False):
@@ -108,6 +115,10 @@ def process(packet):
         return _rec_qubit(packet)
     elif protocol == RELAY:
         return _relay_message(packet)
+    elif protocol == SEND_KEY:
+        return _send_key(packet)
+    elif protocol == REC_KEY:
+        return _rec_key(packet)
     else:
         Logger.get_instance().error('protocol not defined')
 
@@ -202,35 +213,34 @@ def _send_teleport(packet):
     else:
         q_type = DATA
 
-    q_id = None
-
     q = packet.payload['q']
+    q_id = q.id
 
     host_sender = network.get_host(packet.sender)
     if GENERATE_EPR_IF_NONE in packet.payload and packet.payload[GENERATE_EPR_IF_NONE]:
         if not network.shares_epr(packet.sender, packet.receiver):
             Logger.get_instance().log(
                 'No shared EPRs - Generating one between ' + packet.sender + " and " + packet.receiver)
-            q_id, _ = host_sender.send_epr(packet.receiver, await_ack=True, block=True)
+            host_sender.send_epr(packet.receiver, q_id=q_id, await_ack=True, block=True)
 
     if 'q_id' in packet.payload:
-        epr_teleport = host_sender.get_epr(packet.receiver, packet.payload['q_id'], wait=10)
+        epr_teleport = host_sender.get_epr(packet.receiver, packet.payload['q_id'], wait=WAIT_TIME)
     else:
-        if q_id is not None:
-            epr_teleport = host_sender.get_epr(packet.receiver, q_id, wait=10)
-        else:
-            epr_teleport = host_sender.get_epr(packet.receiver, wait=10)
+        epr_teleport = host_sender.get_epr(packet.receiver, q_id, wait=WAIT_TIME)
+
     assert epr_teleport is not None
     q.cnot(epr_teleport)
     q.H()
 
     m1 = q.measure()
     m2 = epr_teleport.measure()
+
     data = {
         'measurements': [m1, m2],
         'type': q_type,
         'node': node
     }
+
     if q_type == EPR:
         data['q_id'] = packet.payload['q_id']
     else:
@@ -258,11 +268,11 @@ def _rec_teleport(packet):
     payload = packet.payload
     q_id = payload['q_id']
 
-    q = host_receiver.get_epr(packet.sender, q_id, wait=10)
+    q = host_receiver.get_epr(packet.sender, q_id, wait=WAIT_TIME)
     if q is None:
         # TODO: what to do when fails
         raise Exception
-        return
+
     a = payload['measurements'][0]
     b = payload['measurements'][1]
     epr_host = payload['node']
@@ -277,7 +287,7 @@ def _rec_teleport(packet):
         host_receiver.add_epr(epr_host, q)
 
     elif payload['type'] == DATA:
-        host_receiver.add_data_qubit(epr_host, q)
+        host_receiver.add_data_qubit(epr_host, q, q_id=q_id)
 
     if packet.await_ack:
         if 'o_seq_num' in payload and 'ack' in payload:
@@ -349,7 +359,7 @@ def _send_superdense(packet):
         Logger.get_instance().log('No shared EPRs - Generating one between ' + sender + " and " + receiver)
         q_id, _ = host_sender.send_epr(receiver, await_ack=True, block=True)
         assert q_id is not None
-        q_superdense = host_sender.get_epr(receiver, q_id=q_id, wait=10)
+        q_superdense = host_sender.get_epr(receiver, q_id=q_id, wait=WAIT_TIME)
 
     else:
         q_superdense = host_sender.get_epr(receiver, wait=5)
@@ -381,8 +391,8 @@ def _rec_superdense(packet):
 
     host_receiver = network.get_host(receiver)
 
-    q1 = host_receiver.get_data_qubit(sender, payload.id, wait=10)
-    q2 = host_receiver.get_epr(sender, payload.id, wait=10)
+    q1 = host_receiver.get_data_qubit(sender, payload.id, wait=WAIT_TIME)
+    q2 = host_receiver.get_epr(sender, payload.id, wait=WAIT_TIME)
 
     assert q1 is not None and q2 is not None
 
@@ -393,29 +403,91 @@ def _rec_superdense(packet):
             SEQUENCE_NUMBER: packet.seq_num}
 
 
-def _add_checksum(sender, qubits, size_per_qubit=2):
-    """
-    Generate a set of qubits that represent a quantum checksum for the set of qubits *qubits*
-    Args:
-        sender: The sender name
-        qubits: The set of qubits to encode
-        size_per_qubit: The size of the checksum per qubit (i.e. 1 qubit encoded into *size*)
+def _send_key(packet):
+    receiver = network.get_host(packet.receiver)
+    sender = network.get_host(packet.sender)
+    key_size = packet.payload['keysize']
 
-    Returns:
-        list: A list of qubits that are encoded for *qubits*
-    """
-    i = 0
-    check_qubits = []
-    while i < len(qubits):
-        check = Qubit(sender)
-        j = 0
-        while j < size_per_qubit:
-            qubits[i + j].cnot(check)
-            j += 1
+    packet.protocol = REC_KEY
+    network.send(packet)
 
-        check_qubits.append(check)
-        i += size_per_qubit
-    return check_qubits
+    secret_key = np.random.randint(2, size=key_size)
+    msg_buff = []
+    sender.qkd_keys[receiver.host_id] = secret_key.tolist()
+    sequence_nr = 0
+    # iterate over all bits in the secret key.
+    for bit in secret_key:
+        ack = False
+        while not ack:
+            # get a random base. 0 for Z base and 1 for X base.
+            base = random.randint(0, 1)
+
+            # create qubit
+            q_bit = Qubit(sender)
+            # Set qubit to the bit from the secret key.
+            if bit == 1:
+                q_bit.X()
+
+            # Apply basis change to the bit if necessary.
+            if base == 1:
+                q_bit.H()
+
+            # Send Qubit to Receiver
+            sender.send_qubit(receiver.host_id, q_bit, await_ack=True)
+            # Get measured basis of Receiver
+            message = sender.get_next_classical_message(receiver.host_id, msg_buff, sequence_nr)
+            # Compare to send basis, if same, answer with 0 and set ack True and go to next bit,
+            # otherwise, send 1 and repeat.
+            if message == ("%d:%d") % (sequence_nr, base):
+                ack = True
+                sender.send_classical(receiver.host_id, ("%d:0" % sequence_nr), await_ack=True)
+            else:
+                ack = False
+                sender.send_classical(receiver.host_id, ("%d:1" % sequence_nr), await_ack=True)
+
+            sequence_nr += 1
+
+
+def _rec_key(packet):
+    receiver = network.get_host(packet.receiver)
+    sender = network.get_host(packet.sender)
+    key_size = packet.payload['keysize']
+
+    msg_buff = []
+    key = None
+
+    sequence_nr = 0
+    received_counter = 0
+    key_array = []
+
+    while received_counter < key_size:
+        # decide for a measurement base
+        measurement_base = random.randint(0, 1)
+
+        # wait for the qubit
+        q_bit = receiver.get_data_qubit(sender.host_id, wait=WAIT_TIME)
+        while q_bit is None:
+            q_bit = receiver.get_data_qubit(sender.host_id, wait=WAIT_TIME)
+
+        # measure qubit in right measurement basis
+        if measurement_base == 1:
+            q_bit.H()
+        bit = q_bit.measure()
+
+        # Send sender the base in which receiver has measured
+        receiver.send_classical(sender.host_id, "%d:%d" % (sequence_nr, measurement_base), await_ack=True)
+
+        # get the return message from sender, to know if the bases have matched
+        msg = receiver.get_next_classical_message(sender.host_id, msg_buff, sequence_nr)
+
+        # Check if the bases have matched
+        if msg == ("%d:0" % sequence_nr):
+            received_counter += 1
+            key_array.append(bit)
+        sequence_nr += 1
+
+    key = key_array
+    receiver.qkd_keys[sender.host_id] = key
 
 
 def _encode_superdense(message, q):

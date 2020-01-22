@@ -1,7 +1,9 @@
 Examples
 =========
 
-.. toctree::
+..  toctree::
 
-   examples/send_epr
-   examples/QKD
+    examples/send_data
+    examples/send_epr
+    examples/entanglement_routing
+    examples/QKD
