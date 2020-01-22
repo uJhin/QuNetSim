@@ -6,6 +6,7 @@ from objects.qubit import Qubit
 from objects.quantum_storage import QuantumStorage
 from objects.classical_storage import ClassicalStorage
 from objects.message import Message
+from objects.data_storage import DataStorage
 from backends.cqc_backend import CQCBackend
 import uuid
 import time
@@ -23,7 +24,6 @@ class Host:
         Args:
             host_id: The ID of the host
             backend: The backend to use for this host
-
         """
         self._host_id = host_id
         self._packet_queue = Queue()
@@ -38,24 +38,25 @@ class Host:
             self._backend = CQCBackend()
         else:
             self._backend = backend
-        # add this host to the backend
 
-        self._backend.add_host(self)
-        self._max_ack_wait = None
-        # Frequency of queue processing
-        self._delay = 0.1
-        self.logger = Logger.get_instance()
-        # Packet sequence numbers per connection
-        self._max_window = 10
-        # [Queue, sender, seq_num, timeout, start_time]
-        self._ack_receiver_queue = []
-        # sender: host -> int
-        self._seq_number_sender = {}
-        # sender_ack: host->[received_list, low_number]
-        self._seq_number_sender_ack = {}
-        # receiver: host->[received_list, low_number]
-        self._seq_number_receiver = {}
+        self._backend.add_host(self)            # add this host to the backend
+        self._max_ack_wait = None               # Max waiting time for ACKs
+        self._delay = 0.1                       # Frequency of queue processing
+        ##################################
+        # Ack Windows
+        ##################################
+        self._max_window = 10                   # Packet sequence numbers per connection
+        self._ack_receiver_queue = []           # [Queue, sender, seq_num, timeout, start_time]
+        self._seq_number_sender = {}            # sender: host -> int
+        self._seq_number_sender_ack = {}        # sender_ack: host->[received_list, low_number]
+        self._seq_number_receiver = {}          # receiver: host->[received_list, low_number]
         self.qkd_keys = {}
+        #################################
+        # Logging features
+        #################################
+        self.logger = Logger.get_instance()     # Logging at runtime on terminal
+        self._store_statistics = False          # If statisitcs for this host should be saved
+        self._statistic_storage = None            # Storage object for host statistics, if store statisitics is True
 
     @property
     def host_id(self):
@@ -80,6 +81,25 @@ class Host:
             classical connections
         """
         return self._classical_connections
+
+    @property
+    def store_statistics(self):
+        """
+        Returns:
+            Bool if statistics of this host should be stored.
+        """
+        return self._store_statistics
+
+    @store_statistics.setter
+    def store_statistics(self, flag):
+        if self._store_statistics is False \
+            and flag is True:
+            self._statistic_storage = DataStorage()
+        self._store_statistics  = flag
+
+    @property
+    def statisitic_storage(self):
+        return self._statistic_storage
 
     def get_connections(self):
         """
@@ -530,6 +550,8 @@ class Host:
                                   sequence_num=seq_num,
                                   await_ack=await_ack)
         self.logger.log(self.host_id + " sends EPR to " + receiver_id)
+        if self._store_statistics:
+            self._statistic_storage.log_epr_created()
         self._packet_queue.put(packet)
 
         if packet.await_ack:

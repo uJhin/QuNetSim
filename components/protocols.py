@@ -326,6 +326,8 @@ def _rec_epr(packet):
     q = host_receiver.backend.receive_epr(host_receiver.host_id,
                                           q_id=payload['q_id'],
                                           block=payload['blocked'])
+    if host_receiver.store_statistics:
+        host_receiver.statisitic_storage.log_epr_received()
     host_receiver.add_epr(sender, q)
     if packet.await_ack:
         _send_ack(sender, receiver, packet.seq_num)
