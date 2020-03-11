@@ -352,7 +352,7 @@ class EQSNBackend(object):
         """
         self.eqsn.cphase_gate(target.qubit, qubit.qubit)
 
-    def measure(self, qubit, non_destructive):
+    def measure(self, qubit, non_destructive=False):
         """
         Perform a measurement on a qubit.
 
