@@ -205,7 +205,7 @@ class Qubit(object):
         """
         self._host.backend.cphase(self, target)
 
-    def measure(self, non_destructive=False):
+    def measure(self, non_destructive=True):
         """
         Measures the state of a qubit.
 
