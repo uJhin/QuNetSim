@@ -132,17 +132,20 @@ def player_1(host, other_player, jury):
 
     res_row = [[0 for i in range(N)] for j in range(M)]
 
-    res_row[0][0] = parity_meas([qa, qc], "IZ", host, True)
-    res_row[0][1] = parity_meas([qa, qc], "ZI", host, True)
-    res_row[0][2] = parity_meas([qa, qc], "ZZ", host)
+    if row == 0 :
+        res_row[0][0] = parity_meas([qa, qc], "IZ", host, True)
+        res_row[0][1] = parity_meas([qa, qc], "ZI", host, True)
+        res_row[0][2] = parity_meas([qa, qc], "ZZ", host)
 
-    res_row[1][0] = parity_meas([qa, qc], "XI", host, True)
-    res_row[1][1] = parity_meas([qa, qc], "IX", host, True)
-    res_row[1][2] = parity_meas([qa, qc], "XX", host)
+    if row == 1:
+        res_row[1][0] = parity_meas([qa, qc], "XI", host, True)
+        res_row[1][1] = parity_meas([qa, qc], "IX", host, True)
+        res_row[1][2] = parity_meas([qa, qc], "XX", host)
 
-    res_row[2][0] = parity_meas([qa, qc], "XZ", host, True)
-    res_row[2][1] = parity_meas([qa, qc], "ZX", host, True)
-    res_row[2][2] = parity_meas([qa, qc], "YY", host)
+    if row == 2:
+        res_row[2][0] = parity_meas([qa, qc], "XZ", host, True)
+        res_row[2][1] = parity_meas([qa, qc], "ZX", host, True)
+        res_row[2][2] = parity_meas([qa, qc], "YY", host)
 
     # if row == 0:
     #     m_0 = parity_meas([qa, qc], "XI", host)
@@ -186,18 +189,18 @@ def player_2(host, other_player, jury):
     M = 3
 
     res_col = [[0 for i in range(N)] for j in range(M)]
-
-    res_col[0][0] = parity_meas([qb, qd], "IZ", host, True)
-    res_col[0][1] = parity_meas([qb, qd], "XI", host, True)
-    res_col[0][2] = parity_meas([qb, qd], "XZ", host, True)
-
-    res_col[1][0] = parity_meas([qb, qd], "ZI", host, True)
-    res_col[1][1] = parity_meas([qb, qd], "IX", host, True)
-    res_col[1][2] = parity_meas([qb, qd], "ZX", host, True)
-
-    res_col[2][0] = parity_meas([qb, qd], "ZZ", host)
-    res_col[2][1] = parity_meas([qb, qd], "XX", host)
-    res_col[2][2] = parity_meas([qb, qd], "YY", host)
+    if col == 0:
+        res_col[0][0] = parity_meas([qb, qd], "IZ", host, True)
+        res_col[0][1] = parity_meas([qb, qd], "XI", host, True)
+        res_col[0][2] = parity_meas([qb, qd], "XZ", host, True)
+    if col == 1 :
+        res_col[1][0] = parity_meas([qb, qd], "ZI", host, True)
+        res_col[1][1] = parity_meas([qb, qd], "IX", host, True)
+        res_col[1][2] = parity_meas([qb, qd], "ZX", host, True)
+    if col == 2:
+        res_col[2][0] = parity_meas([qb, qd], "ZZ", host)
+        res_col[2][1] = parity_meas([qb, qd], "XX", host)
+        res_col[2][2] = parity_meas([qb, qd], "YY", host)
 
     # if col == 0:
     #     m_0 = parity_meas([qb, qd], "XI", host)
