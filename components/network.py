@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 from queue import Queue
 import time
 import random
+
+from objects.qubit import Qubit
+
 from components import protocols
 from objects.logger import Logger
 from objects.daemon_thread import DaemonThread
@@ -10,7 +13,7 @@ from inspect import signature
 
 from objects.packet import Packet
 from objects.routing_packet import RoutingPacket
-from backends.cqc_backend import CQCBackend
+from backends.eqsn_backend import EQSNBackend
 
 
 # Network singleton
@@ -35,6 +38,7 @@ class Network:
             self._use_hop_by_hop = True
             self._packet_queue = Queue()
             self._stop_thread = False
+            self._use_ent_swap = False
             self._queue_processor_thread = None
             self._delay = 0.1
             self._packet_drop_rate = 0
@@ -44,6 +48,14 @@ class Network:
             Network.__instance = self
         else:
             raise Exception('this is a singleton class')
+
+    @property
+    def use_ent_swap(self):
+        return self._use_ent_swap
+
+    @use_ent_swap.setter
+    def use_ent_swap(self, use_ent_swap):
+        self._use_ent_swap = use_ent_swap
 
     @property
     def use_hop_by_hop(self):
@@ -315,7 +327,7 @@ class Network:
             host_id (str): ID number of the host that is returned.
 
         Returns:
-             Host: Host with the *host_id*
+             Host (Host): Host with the *host_id*
         """
         if host_id not in self.ARP:
             return None
@@ -379,17 +391,25 @@ class Network:
             receiver (Host): Receiver of the EPR pair
             route (list): Route between the sender and receiver
             q_id (str): Qubit ID of the sent EPR pair
+            o_seq_num (int): The original sequence number
             blocked (bool): If the pair being distributed is blocked or not
         """
         host_sender = self.get_host(sender)
-        # TODO: Multi-thread this
-        # Create EPR pairs on the route, where all EPR qubits have the id q_id
-        for i in range(len(route) - 1):
-            if not self.shares_epr(route[i], route[i + 1]):
-                self.get_host(route[i]).send_epr(route[i + 1], q_id, await_ack=True)
+
+        def establish_epr(net, s, r):
+            if not net.shares_epr(s, r):
+                self.get_host(s).send_epr(r, q_id, await_ack=True)
             else:
-                old_id = self.get_host(route[i]).change_epr_qubit_id(route[i + 1], q_id)
-                self.get_host(route[i + 1]).change_epr_qubit_id(route[i], q_id, old_id)
+                old_id = self.get_host(s).change_epr_qubit_id(r, q_id)
+                net.get_host(r).change_epr_qubit_id(route[i], q_id, old_id)
+
+        # Create EPR pairs on the route, where all EPR qubits have the id q_id
+        threads = []
+        for i in range(len(route) - 1):
+            threads.append(DaemonThread(establish_epr, args=(self, route[i], route[i + 1])))
+
+        for t in threads:
+            t.join()
 
         for i in range(len(route) - 2):
             host = self.get_host(route[i + 1])
@@ -424,6 +444,28 @@ class Network:
         Logger.get_instance().log('Entanglement swap was successful for pair with id '
                                   + q_id + ' between ' + sender + ' and ' + receiver)
 
+    def _establish_epr(self, sender, receiver, q_id, o_seq_num, blocked):
+        """
+        Instead doing an entanglement swap, for efficiency we establish EPR pairs
+        directly for simulation, if an entanglement swap would have been possible.
+
+        Args:
+            sender (Host): Sender of the EPR pair
+            receiver (Host): Receiver of the EPR pair
+            q_id (str): Qubit ID of the sent EPR pair
+            o_seq_num (int): The original sequence number
+            blocked (bool): If the pair being distributed is blocked or not
+        """
+        host_sender = self.get_host(sender)
+        host_receiver = self.get_host(receiver)
+        q1 = Qubit(host_sender)
+        q2 = Qubit(host_sender)
+        q1.H()
+        q1.cnot(q2)
+        host_sender.add_epr(receiver, q1, q_id, blocked)
+        host_receiver.add_epr(sender, q2, q_id, blocked)
+        host_receiver.send_ack(sender, o_seq_num)
+
     def _route_quantum_info(self, sender, receiver, qubits):
         """
         Routes qubits from sender to receiver.
@@ -450,8 +492,8 @@ class Network:
                 # Unblock qubits in case they were blocked
                 q.blocked = False
 
-                if not store and self.ARP[r].quantum_relay_sniffing:
-                    self.ARP[r].quantum_relay_sniffing_function(original_sender, receiver, q)
+                if not store and self.ARP[r].q_relay_sniffing:
+                    self.ARP[r].q_relay_sniffing_fn(original_sender, receiver, q)
 
                 if store and original_sender is not None:
                     self.ARP[r].add_data_qubit(original_sender, q)
@@ -486,6 +528,8 @@ class Network:
                 packet_drop_var = random.random()
                 if packet_drop_var > (1 - self.packet_drop_rate):
                     Logger.get_instance().log("PACKET DROPPED")
+                    if packet.payload_type == protocols.QUANTUM:
+                        packet.payload.release()
                     continue
 
                 sender, receiver = packet.sender, packet.receiver
@@ -525,9 +569,16 @@ class Network:
                             q_id = packet.payload['q_id']
                             blocked = packet.payload['blocked']
                             q_route = self.get_quantum_route(sender, receiver)
-                            DaemonThread(self._entanglement_swap,
-                                         args=(sender, receiver, q_route, q_id,
-                                               packet.seq_num, blocked))
+
+                            if self.use_ent_swap:
+                                DaemonThread(self._entanglement_swap,
+                                             args=(sender, receiver, q_route, q_id,
+                                                   packet.seq_num, blocked))
+                            else:
+                                DaemonThread(self._establish_epr,
+                                             args=(sender, receiver, q_id,
+                                                   packet.seq_num, blocked))
+
                         else:
                             network_packet = self._encode(route, packet)
                             self.ARP[route[1]].rec_packet(network_packet)
@@ -563,8 +614,8 @@ class Network:
             self._stop_thread = True
             if self._backend is not None:
                 self._backend.stop()
-        except Exception:
-            Logger.get_instance().error("Network stopped with errors")
+        except Exception as e:
+            Logger.get_instance().error(e)
 
     def start(self, nodes=None, backend=None):
         """
@@ -572,7 +623,7 @@ class Network:
 
         """
         if backend is None:
-            self._backend = CQCBackend()
+            self._backend = EQSNBackend()
         else:
             self._backend = backend
         if nodes is not None:

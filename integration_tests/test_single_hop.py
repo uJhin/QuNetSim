@@ -2,12 +2,9 @@ from objects.qubit import Qubit
 from components.host import Host
 from components.network import Network
 from components import protocols
-from objects.logger import Logger
-from backends.projectq_backend import ProjectQBackend
+from backends.eqsn_backend import EQSNBackend
 import unittest
 import time
-
-Logger.DISABLED = True
 
 network = Network.get_instance()
 hosts = None
@@ -15,7 +12,6 @@ hosts = None
 
 # @unittest.skip('')
 class TestOneHop(unittest.TestCase):
-    sim_network = None
     network = None
     hosts = None
     MAX_WAIT = 10
@@ -25,7 +21,7 @@ class TestOneHop(unittest.TestCase):
         global network
         global hosts
         nodes = ["Alice", "Bob"]
-        backend = ProjectQBackend()
+        backend = EQSNBackend()
         network.start(nodes=nodes, backend=backend)
         hosts = {'alice': Host('Alice', backend),
                  'bob': Host('Bob', backend)}
@@ -64,9 +60,6 @@ class TestOneHop(unittest.TestCase):
 
     # @unittest.skip('')
     def test_shares_epr(self):
-        global hosts
-        global network
-
         q_id = hosts['alice'].send_epr(hosts['bob'].host_id)
         q1 = hosts['alice'].shares_epr(hosts['bob'].host_id)
         i = 0
@@ -96,9 +89,9 @@ class TestOneHop(unittest.TestCase):
     def test_send_classical(self):
         hosts['alice'].send_classical(hosts['bob'].host_id, 'Hello Bob', await_ack=False)
         hosts['bob'].send_classical(hosts['alice'].host_id, 'Hello Alice', await_ack=False)
-
         i = 0
         bob_messages = hosts['bob'].classical
+
         while i < TestOneHop.MAX_WAIT and len(bob_messages) == 0:
             bob_messages = hosts['bob'].classical
             i += 1
@@ -187,7 +180,6 @@ class TestOneHop(unittest.TestCase):
     # @unittest.skip('')
     def test_max_wait_for_ack(self):
         global hosts
-
         ack_received_1 = hosts['alice'].send_classical(hosts['bob'].host_id, 'hello bob one', await_ack=True)
         hosts['alice'].max_ack_wait = 0
         ack_received_2 = hosts['alice'].send_classical(hosts['bob'].host_id, 'hello bob one', await_ack=True)

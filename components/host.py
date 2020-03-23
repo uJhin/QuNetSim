@@ -7,7 +7,7 @@ from objects.qubit import Qubit
 from objects.quantum_storage import QuantumStorage
 from objects.classical_storage import ClassicalStorage
 from objects.message import Message
-from backends.cqc_backend import CQCBackend
+from backends.eqsn_backend import EQSNBackend
 import uuid
 import time
 
@@ -35,7 +35,7 @@ class Host:
         self._classical_connections = []
         self._quantum_connections = []
         if backend is None:
-            self._backend = CQCBackend()
+            self._backend = EQSNBackend()
         else:
             self._backend = backend
         # add this host to the backend
@@ -58,10 +58,10 @@ class Host:
         self.qkd_keys = {}
         self._sniff_full_packet = False
         self._sniff_exclude_ACKs = True
-        self._relay_sniffing = False
-        self._relay_sniffing_function = None
-        self._quantum_relay_sniffing = False
-        self._quantum_relay_sniffing_function = None
+        self._c_relay_sniffing = False
+        self._c_relay_sniffing_fn = None
+        self._q_relay_sniffing = False
+        self._q_relay_sniffing_fn = None
 
     @property
     def host_id(self):
@@ -234,16 +234,21 @@ class Host:
         return self._quantum_connections
 
     @property
-    def relay_sniffing(self):
-        return self._relay_sniffing
+    def c_relay_sniffing(self):
+        return self._c_relay_sniffing
 
-    @relay_sniffing.setter
-    def relay_sniffing(self, value):
+    @c_relay_sniffing.setter
+    def c_relay_sniffing(self, value):
         if not isinstance(value, bool):
             raise ValueError("Relay sniffing has to be a boolean.")
-        self._relay_sniffing = value
+        self._c_relay_sniffing = value
 
-    def set_relay_sniffing_function(self, func):
+    @property
+    def c_relay_sniffing_fn(self):
+        return self._c_relay_sniffing_fn
+
+    @c_relay_sniffing_fn.setter
+    def c_relay_sniffing_fn(self, func):
         """
         Set a custom function which handles messages which are routed
         through this host. Functions parameter have to be **sender, receiver,
@@ -252,18 +257,18 @@ class Host:
         Args:
             func (function): Function with sender, receiver, msg args.
         """
-        self._relay_sniffing_function = func
+        self._c_relay_sniffing_fn = func
 
     def relay_sniffing_function(self, sender, receiver, transport_packet):
-        if self._relay_sniffing_function is not None \
+        if self.c_relay_sniffing_fn is not None \
                 and isinstance(transport_packet, Packet) \
                 and isinstance(transport_packet.payload, Message):
             if not self._sniff_exclude_ACKs or \
                     (self._sniff_exclude_ACKs and transport_packet.payload.content != protocols.ACK):
                 if self._sniff_full_packet:
-                    self._relay_sniffing_function(sender, receiver, transport_packet)
+                    self._c_relay_sniffing_fn(sender, receiver, transport_packet)
                 else:
-                    self._relay_sniffing_function(sender, receiver, transport_packet.payload)
+                    self._c_relay_sniffing_fn(sender, receiver, transport_packet.payload)
 
     @property
     def sniff_full_packet(self):
@@ -290,16 +295,21 @@ class Host:
         self._sniff_full_packet = should_sniff_full_packet
 
     @property
-    def quantum_relay_sniffing(self):
-        return self._quantum_relay_sniffing
+    def q_relay_sniffing(self):
+        return self._q_relay_sniffing
 
-    @quantum_relay_sniffing.setter
-    def quantum_relay_sniffing(self, value):
+    @q_relay_sniffing.setter
+    def q_relay_sniffing(self, value):
         if not isinstance(value, bool):
             raise ValueError("Quantum Relay sniffing has to be a boolean.")
-        self._quantum_relay_sniffing = value
+        self._q_relay_sniffing = value
 
-    def set_quantum_relay_sniffing_function(self, func):
+    @property
+    def q_relay_sniffing_fn(self):
+        return self._q_relay_sniffing_fn
+
+    @q_relay_sniffing_fn.setter
+    def q_relay_sniffing_fn(self, func):
         """
         Set a custom function which handles qubits which are routes through this
         host. Functions parameter have to be **sender, receiver, qubit**.
@@ -307,14 +317,14 @@ class Host:
         Args:
             func (function): Function with sender, receiver, qubit args.
         """
-        self._quantum_relay_sniffing_function = func
+        self._q_relay_sniffing_fn = func
 
     def quantum_relay_sniffing_function(self, sender, receiver, qubit):
         """
         Calls the quantum relay sniffing function if one is set.
         """
-        if self._quantum_relay_sniffing_function is not None:
-            self._quantum_relay_sniffing_function(sender, receiver, qubit)
+        if self._q_relay_sniffing_fn is not None:
+            self._q_relay_sniffing_fn(sender, receiver, qubit)
 
     def _get_sequence_number(self, host):
         """
@@ -423,21 +433,7 @@ class Host:
             packet (Packet): The received packet
         """
 
-        def check_task(q, _sender, _seq_num, timeout, start_time):
-            if timeout is not None and time.time() - timeout > start_time:
-                q.put(False)
-                return True
-            if _sender not in self._seq_number_sender_ack:
-                return False
-            if _seq_num < self._seq_number_sender_ack[_sender][1]:
-                q.put(True)
-                return True
-            if _seq_num in self._seq_number_sender_ack[_sender][0]:
-                q.put(True)
-                return True
-            return False
-
-        if self._relay_sniffing:
+        if self._c_relay_sniffing:
             # if it is a classical relay message, sniff it
             if packet.protocol == protocols.RELAY:
                 # RELAY is a network layer protocol, the transport layer packet
@@ -458,28 +454,46 @@ class Host:
             else:
                 # Is ack msg
                 sender = msg.sender
-                if sender not in self._seq_number_sender_ack:
-                    self._seq_number_sender_ack[sender] = [[], 0]
                 seq_num = msg.seq_num
-                expected_seq = self._seq_number_sender_ack[sender][1]
-                if seq_num == expected_seq:
-                    self._seq_number_sender_ack[sender][1] += 1
-                    expected_seq = self._seq_number_sender_ack[sender][1]
-                    while len(self._seq_number_sender_ack[sender][0]) > 0 \
-                            and expected_seq in self._seq_number_sender_ack[sender][0]:
-                        self._seq_number_sender_ack[sender][0].remove(
-                            expected_seq)
-                        self._seq_number_sender_ack[sender][1] += 1
-                        expected_seq += 1
-                elif seq_num > expected_seq:
-                    self._seq_number_sender_ack[sender][0].append(seq_num)
-                else:
-                    raise Exception("Received seq_num %d from %s, expected is %d" % (seq_num, sender, expected_seq))
-                    raise Exception("Should never happen!")
-                for t in self._ack_receiver_queue:
-                    res = check_task(*t)
-                    if res is True:
-                        self._ack_receiver_queue.remove(t)
+                self._process_ack(sender, seq_num)
+
+    def _process_ack(self, sender, seq_num):
+        """
+        Processes an ACK msg.
+        """
+        def check_task(q, _sender, _seq_num, timeout, start_time):
+            if timeout is not None and time.time() - timeout > start_time:
+                q.put(False)
+                return True
+            if _sender not in self._seq_number_sender_ack:
+                return False
+            if _seq_num < self._seq_number_sender_ack[_sender][1]:
+                q.put(True)
+                return True
+            if _seq_num in self._seq_number_sender_ack[_sender][0]:
+                q.put(True)
+                return True
+            return False
+
+        if sender not in self._seq_number_sender_ack:
+            self._seq_number_sender_ack[sender] = [[], 0]
+        expected_seq = self._seq_number_sender_ack[sender][1]
+        if seq_num == expected_seq:
+            self._seq_number_sender_ack[sender][1] += 1
+            expected_seq = self._seq_number_sender_ack[sender][1]
+            while len(self._seq_number_sender_ack[sender][0]) > 0 \
+                    and expected_seq in self._seq_number_sender_ack[sender][0]:
+                self._seq_number_sender_ack[sender][0].remove(
+                    expected_seq)
+                self._seq_number_sender_ack[sender][1] += 1
+                expected_seq += 1
+        elif seq_num > expected_seq:
+            self._seq_number_sender_ack[sender][0].append(seq_num)
+
+        for t in self._ack_receiver_queue:
+            res = check_task(*t)
+            if res is True:
+                self._ack_receiver_queue.remove(t)
 
     def _process_queue(self):
         """
@@ -620,16 +634,19 @@ class Host:
                                   payload_type=protocols.SIGNAL,
                                   sequence_num=seq_number,
                                   await_ack=False)
+        self._packet_queue.put(packet)
 
         if receiver not in self._seq_number_receiver:
             self._seq_number_receiver[receiver] = [[], 0]
         expected_seq = self._seq_number_receiver[receiver][1]
 
-        if expected_seq + self._max_window < seq_number:
-            raise Exception(
-                "Message with seq number %d did not come before the receiver window closed!" % expected_seq)
+        while expected_seq + self._max_window < seq_number:
+            self.logger.log("%s: Msg with sequence number %d was not received within the receiving window." % (self.host_id, expected_seq))
+            # just jump over this sequence number
+            expected_seq += 1
+            self._seq_number_receiver[receiver][1] += 1
 
-        elif expected_seq < seq_number:
+        if expected_seq < seq_number:
             self._seq_number_receiver[receiver][0].append(seq_number)
 
         else:
@@ -640,7 +657,6 @@ class Host:
                 self._seq_number_receiver[receiver][0].remove(expected_seq)
                 self._seq_number_receiver[receiver][1] += 1
                 expected_seq += 1
-        self._packet_queue.put(packet)
 
     def await_ack(self, sequence_number, sender):
         """
@@ -663,6 +679,8 @@ class Host:
                 did_ack = q.get(timeout=self._max_ack_wait)
             except Exception as error:
                 did_ack = False
+                # remove this ACK from waiting list
+                self._process_ack(sender, sequence_number)
             return
 
         did_ack = False
@@ -676,6 +694,7 @@ class Host:
         Args:
             sender (str): sender for which to wait for all acks.
         """
+
         def wait_multiple_seqs(seq_num_list):
             queue_list = []
             start_time = time.time()
@@ -684,21 +703,23 @@ class Host:
                 task = (q, sender, sequence_number, self._max_ack_wait, start_time)
                 self._ack_receiver_queue.append(task)
                 queue_list.append(q)
-            ret = True
-            for q in queue_list:
+            ret_list = []
+            for q, seq_num in zip(queue_list, seq_num_list):
                 if q.get() is False:
-                    ret = False
-            return ret
+                    ret_list.append(seq_num)
+                    # remove this seq_num from waiting list
+                    self._process_ack(sender, seq_num)
+            return ret_list
 
         last_send_seq = self._seq_number_sender[sender]
         lowest_waiting_seq = 0
-        all_remaining_acks = range(lowest_waiting_seq, last_send_seq+1)
+        all_remaining_acks = range(lowest_waiting_seq, last_send_seq + 1)
         if sender in self._seq_number_sender_ack:
             lowest_waiting_seq = self._seq_number_sender_ack[sender][1]
-            all_remaining_acks = range(lowest_waiting_seq, last_send_seq+1)
+            all_remaining_acks = range(lowest_waiting_seq, last_send_seq + 1)
             for received_ack in self._seq_number_sender_ack[sender][0]:
                 all_remaining_acks.remove(received_ack)
-        wait_multiple_seqs(all_remaining_acks)
+        return wait_multiple_seqs(all_remaining_acks)
 
     def send_broadcast(self, message):
         """
@@ -1158,6 +1179,22 @@ class Host:
             process_messages()
             return sorted(cla, key=lambda x: x.seq_num, reverse=True)
 
+    def get_next_classical(self, sender_id, wait=-1):
+        """
+        Gets the next classical message available from a sender.
+        If wait is -1 (default), it is waited till a message arrives.
+
+        Args:
+            sender_id (str): ID of the sender from the returned message.
+            wait (int): waiting time, default forever.
+        """
+        ret = None
+        wait_start_time = time.time()
+        while (time.time() - wait_start_time < wait or wait == -1) \
+                and ret == None:
+            ret = self._classical_messages.get_next_from_sender(sender_id)
+        return ret
+
     def get_epr(self, host_id, q_id=None, wait=-1):
         """
         Gets the EPR that is entangled with another host in the network. If qubit ID is specified,
@@ -1231,8 +1268,6 @@ class Host:
                 self._qubit_storage.release_storage()
             except Exception:
                 Logger.get_instance().error('Releasing qubits was not successful')
-
-        self._backend.stop()
         self._stop_thread = True
 
     def start(self):

@@ -94,6 +94,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="install.html#via-pip">Via pip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="install.html#linux-mac-os-x">Linux / Mac OS X</a></li>
 <li class="toctree-l2"><a class="reference internal" href="install.html#windows">Windows</a></li>
 </ul>
@@ -129,6 +130,7 @@
 <li class="toctree-l2"><a class="reference internal" href="examples/quantum_money.html">Quantum Money with a Man-in-the-Middle Attack</a></li>
 <li class="toctree-l2"><a class="reference internal" href="examples/entanglement_routing.html">Routing with Entanglement</a></li>
 <li class="toctree-l2"><a class="reference internal" href="examples/QKD.html">Quantum Key Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/quantum_coin_flipping.html">Quantum Coin Flipping</a></li>
 </ul>
 </li>
 </ul>
@@ -240,6 +242,8 @@
 </li>
       <li><a href="components/network.html#components.network.Network._entanglement_swap">_entanglement_swap() (components.network.Network method)</a>
 </li>
+      <li><a href="components/network.html#components.network.Network._establish_epr">_establish_epr() (components.network.Network method)</a>
+</li>
       <li><a href="components/host.html#components.host.Host._get_message_w_seq_num">_get_message_w_seq_num() (components.host.Host method)</a>
 </li>
       <li><a href="components/host.html#components.host._get_qubit">_get_qubit() (in module components.host)</a>
@@ -249,6 +253,8 @@
       <li><a href="objects/quantum_storage.html#objects.quantum_storage.QuantumStorage._increase_qubit_counter">_increase_qubit_counter() (objects.quantum_storage.QuantumStorage method)</a>
 </li>
       <li><a href="components/host.html#components.host.Host._log_ack">_log_ack() (components.host.Host method)</a>
+</li>
+      <li><a href="components/host.html#components.host.Host._process_ack">_process_ack() (components.host.Host method)</a>
 </li>
       <li><a href="components/host.html#components.host.Host._process_packet">_process_packet() (components.host.Host method)</a>
 </li>
@@ -438,10 +444,10 @@
 </li>
       <li><a href="components/host.html#components.host.Host.get_data_qubits">get_data_qubits() (components.host.Host method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="components/host.html#components.host.Host.get_epr">get_epr() (components.host.Host method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="components/host.html#components.host.Host.get_epr_pairs">get_epr_pairs() (components.host.Host method)</a>
 </li>
       <li><a href="components/host.html#components.host.Host.get_ghz">get_ghz() (components.host.Host method)</a>
@@ -449,6 +455,8 @@
       <li><a href="components/network.html#components.network.Network.get_host">get_host() (components.network.Network method)</a>
 </li>
       <li><a href="components/network.html#components.network.Network.get_host_name">get_host_name() (components.network.Network method)</a>
+</li>
+      <li><a href="components/host.html#components.host.Host.get_next_classical">get_next_classical() (components.host.Host method)</a>
 </li>
       <li><a href="components/host.html#components.host.Host.get_next_classical_message">get_next_classical_message() (components.host.Host method)</a>
 </li>
@@ -614,11 +622,13 @@
 </li>
       <li><a href="components/host.html#components.host.Host.remove_c_connection">remove_c_connection() (components.host.Host method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="components/host.html#components.host.Host.remove_connection">remove_connection() (components.host.Host method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="components/network.html#components.network.Network.remove_host">remove_host() (components.network.Network method)</a>
+</li>
+      <li><a href="objects/quantum_storage.html#objects.quantum_storage.QuantumStorage.reset_storage">reset_storage() (objects.quantum_storage.QuantumStorage method)</a>
 </li>
       <li><a href="objects/routing_packet.html#objects.routing_packet.RoutingPacket.route">route() (objects.routing_packet.RoutingPacket property)</a>
 </li>
@@ -668,21 +678,17 @@
         <li><a href="objects/routing_packet.html#objects.routing_packet.RoutingPacket.sender">(objects.routing_packet.RoutingPacket property)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="objects/message.html#objects.message.Message.seq_num">seq_num() (objects.message.Message property)</a>
 
       <ul>
         <li><a href="objects/packet.html#objects.packet.Packet.seq_num">(objects.packet.Packet property)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="components/host.html#components.host.Host.set_data_qubit_memory_limit">set_data_qubit_memory_limit() (components.host.Host method)</a>
 </li>
       <li><a href="components/host.html#components.host.Host.set_epr_memory_limit">set_epr_memory_limit() (components.host.Host method)</a>
-</li>
-      <li><a href="components/host.html#components.host.Host.set_quantum_relay_sniffing_function">set_quantum_relay_sniffing_function() (components.host.Host method)</a>
-</li>
-      <li><a href="components/host.html#components.host.Host.set_relay_sniffing_function">set_relay_sniffing_function() (components.host.Host method)</a>
 </li>
       <li><a href="objects/quantum_storage.html#objects.quantum_storage.QuantumStorage.set_storage_limit">set_storage_limit() (objects.quantum_storage.QuantumStorage method)</a>
 </li>
